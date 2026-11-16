@@ -3,14 +3,16 @@
 El estado vive en memoria: usar UN solo worker de gunicorn (ver render.yaml).
 Los clientes consultan /api/state cada ~1.5 s para ver los cambios.
 """
+import os
 import random
 import threading
 import uuid
 from functools import wraps
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request, send_file
 
 app = Flask(__name__)
+BASE = os.path.dirname(os.path.abspath(__file__))
 ROOMS = {}
 LOCK = threading.RLock()
 MAX_PLAYERS = 4
@@ -204,7 +206,7 @@ def view(R, p):
 @app.get("/")
 @app.get("/r/<code>")
 def index(code=None):
-    return render_template("index.html")
+    return send_file(os.path.join(BASE, "index.html"))
 
 
 @app.post("/api/create")

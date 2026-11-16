@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rummi</title>
+<style>
+:root{
+  --felt:#16413f; --felt-2:#1d524f; --wood:#6b4a2f; --wood-2:#8a6340;
+  --ivory:#f4ecd8; --ink:#1c1c1c; --ok:#86d9a0; --bad:#ee7466; --txt:#eef3ee;
+  --c0:#c0392b; --c1:#1f5fa8; --c2:#d9801a; --c3:#222;
+  --tw:44px; --th:60px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;min-height:100%}
+body{background:var(--felt);color:var(--txt);font:16px/1.4 "Trebuchet MS",Verdana,sans-serif;
+  display:flex;flex-direction:column;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;
+  background:rgba(0,0,0,.25);flex-wrap:wrap}
+h1{margin:0;font:700 1.5rem Georgia,serif;letter-spacing:.02em}
+a.home{color:inherit;text-decoration:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap;font-size:.92rem}
+.chip{padding:3px 10px;border-radius:14px;background:rgba(255,255,255,.1)}
+.chip.turn{background:#ffe27a;color:#2a1c0e;font-weight:700}
+main{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.panel{max-width:460px;margin:30px auto;background:var(--ivory);color:var(--ink);border-radius:14px;
+  padding:24px;display:flex;flex-direction:column;gap:12px;width:100%}
+.panel h2{margin:0;font-family:Georgia,serif}
+.panel p{margin:0}
+input{font:inherit;padding:9px 12px;border-radius:8px;border:2px solid #b9ae93;background:#fff;width:100%}
+ol.plist{margin:0;padding-left:22px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row input{flex:1;min-width:0}
+#msg{min-height:1.4em;font-size:.95rem}
+#msg.error,.panel .error{color:#ffb3a8}
+.panel .error{color:#b3261e}
+#board{display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;min-height:150px;
+  background:var(--felt-2);border-radius:14px;padding:12px}
+.empty{opacity:.7;align-self:center;margin:auto}
+.group{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px;border-radius:10px;
+  background:rgba(0,0,0,.18);border:2px solid transparent;position:relative}
+.group.ok{border-color:var(--ok)} .group.bad{border-color:var(--bad)}
+.group .val{position:absolute;top:-10px;right:8px;font-size:.72rem;padding:0 6px;border-radius:8px;
+  background:var(--felt);color:var(--txt)}
+.slot{width:var(--tw);height:var(--th);border:2px dashed rgba(255,255,255,.4);border-radius:6px;
+  background:none;color:var(--txt);font-size:1.3rem;cursor:pointer}
+.tile{width:var(--tw);height:var(--th);border-radius:6px;border:0;padding:0;background:var(--ivory);
+  box-shadow:0 2px 0 #b9ae93,0 3px 4px rgba(0,0,0,.35);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;cursor:pointer;font-family:Georgia,serif}
+.tile b{font-size:1.45rem;line-height:1}
+.tile i{font-style:normal;font-size:.8rem;margin-top:3px}
+.c0{color:var(--c0)}.c1{color:var(--c1)}.c2{color:var(--c2)}.c3,.c-1{color:var(--c3)}
+.tile.sel{transform:translateY(-6px);outline:3px solid #ffe27a}
+.tile:focus-visible,.slot:focus-visible,button.act:focus-visible,input:focus-visible{outline:3px solid #ffe27a}
+footer{background:var(--wood);border-top:6px solid var(--wood-2);padding:12px 16px;position:sticky;bottom:0}
+#rack{display:flex;flex-wrap:wrap;gap:5px;min-height:var(--th);margin-bottom:10px}
+.bar{display:flex;flex-wrap:wrap;gap:8px}
+button.act{font:inherit;padding:8px 14px;border-radius:8px;border:0;cursor:pointer;
+  background:#f1e6cc;color:#2a1c0e}
+.panel button.act{background:#e4d8bb}
+button.act.main{background:#ffe27a;font-weight:700}
+button.act:disabled{opacity:.45;cursor:not-allowed}
+#end{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;
+  justify-content:center;z-index:5}
+#end div{background:var(--ivory);color:var(--ink);padding:28px 36px;border-radius:14px;text-align:center}
+#end h2{margin:0 0 14px;font-family:Georgia,serif}
+@media (max-width:600px){:root{--tw:38px;--th:54px}.tile b{font-size:1.25rem}}
+</style>
+</head>
+<body>
+<header>
+  <h1><a class="home" href="/">Rummi</a></h1>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="landing" hidden>
+  <section class="panel">
+    <h2 id="ltitle">Juega Rummi con tus amigos</h2>
+    <p id="lsub">Crea una partida y comparte el link. Pueden jugar de 2 a 4 personas, y puedes agregar bots.</p>
+    <label for="name">Tu nombre</label>
+    <input id="name" maxlength="20" autocomplete="nickname" placeholder="Ej. Ana">
+    <button class="act main" id="go">Crear partida</button>
+    <p class="error" id="lerr" role="alert"></p>
+  </section>
+</main>
+
+<main id="lobby" hidden>
+  <section class="panel">
+    <h2>Sala <span id="rcode"></span></h2>
+    <p>Comparte este link para que se unan:</p>
+    <div class="row"><input id="link" readonly aria-label="Link de la sala">
+      <button class="act" id="copy">Copiar link</button>
+      <button class="act" id="share" hidden>Compartir</button></div>
+    <p><b>Jugadores</b> (máximo 4)</p>
+    <ol class="plist" id="plist"></ol>
+    <div class="row">
+      <button class="act" id="addbot">Agregar un bot</button>
+      <button class="act main" id="start">Empezar partida</button>
+    </div>
+    <p id="wait">Esperando a que el anfitrión empiece la partida…</p>
+    <p class="error" id="serr" role="alert"></p>
+  </section>
+</main>
+
+<div id="game" hidden style="display:flex;flex-direction:column;flex:1">
+  <main>
+    <div id="msg" role="status" aria-live="polite"></div>
+    <section id="board" aria-label="Mesa"></section>
+  </main>
+  <footer>
+    <div id="rack" aria-label="Tu atril"></div>
+    <div class="bar">
+      <button class="act" id="newgroup">Nuevo grupo con la selección</button>
+      <button class="act" id="back">Devolver al atril</button>
+      <button class="act" id="undo">Deshacer jugada</button>
+      <button class="act" id="sort">Ordenar: número</button>
+      <button class="act" id="drawbtn">Robar ficha</button>
+      <button class="act main" id="endturn">Terminar turno</button>
+    </div>
+  </footer>
+</div>
+<div id="end"><div><h2 id="endtxt"></h2><a class="act main" href="/" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:8px;background:#ffe27a;color:#2a1c0e;font-weight:700">Volver al inicio</a></div></div>
+
+<script>
+const SYM = ["●","■","▲","◆"], COLOR = ["rojo","azul","naranja","negro"];
+const $ = id => document.getElementById(id);
+const ls = {get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+            set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }};
+const api = (p, b) => fetch("/api/" + p, {method: "POST", headers: {"Content-Type": "application/json"},
+  body: JSON.stringify(b || {})}).then(r => r.json());
+
+const m = location.pathname.match(/^\/r\/([A-Za-z0-9]+)/);
+let code = m ? m[1].toUpperCase() : null;
+let pid = code ? ls.get("rummi:" + code) : null;
+let S, W, mine, sel = new Set(), sortBy = "n", token = 0, vals = [], ver = -1;
+
+function show(which) {
+  ["landing", "lobby", "game"].forEach(id => { $(id).hidden = id !== which; });
+}
+function say(text, error) { $("msg").textContent = text; $("msg").className = error ? "error" : ""; }
+
+/* ---------- inicio / unirse ---------- */
+function showLanding() {
+  show("landing");
+  $("name").value = ls.get("rummi:name") || "";
+  if (code) {
+    $("ltitle").textContent = "Te invitaron a la sala " + code;
+    $("lsub").textContent = "Escribe tu nombre para unirte a la partida.";
+    $("go").textContent = "Unirme";
+  }
+}
+$("go").onclick = async () => {
+  const name = $("name").value.trim();
+  if (!name) return ($("lerr").textContent = "Escribe tu nombre.");
+  ls.set("rummi:name", name);
+  const r = await api(code ? "join" : "create", {code, name});
+  if (r.error) return ($("lerr").textContent = r.error);
+  if (!code) { code = r.code; history.pushState(null, "", "/r/" + code); }
+  pid = r.pid; ls.set("rummi:" + code, pid);
+  ver = -1; poll();
+};
+
+/* ---------- sala de espera ---------- */
+function drawLobby() {
+  show("lobby");
+  $("rcode").textContent = S.code;
+  $("link").value = location.origin + "/r/" + S.code;
+  $("plist").replaceChildren(...S.players.map(p => {
+    const li = document.createElement("li");
+    li.textContent = p.name + (p.bot ? " (bot)" : "") + (p.you ? " (tú)" : "");
+    return li;
+  }));
+  $("addbot").hidden = !S.host || S.players.length >= 4;
+  $("start").hidden = !S.host;
+  $("wait").hidden = S.host;
+  $("chips").replaceChildren();
+}
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("link").value); $("copy").textContent = "¡Copiado!"; }
+  catch (e) { $("link").select(); }
+  setTimeout(() => ($("copy").textContent = "Copiar link"), 1500);
+};
+if (navigator.share) {
+  $("share").hidden = false;
+  $("share").onclick = () => navigator.share({title: "Rummi", text: "Juega Rummi conmigo", url: $("link").value}).catch(() => {});
+}
+$("addbot").onclick = async () => { const r = await api("addbot", {code, pid}); if (r.error) $("serr").textContent = r.error; else poll(); };
+$("start").onclick = async () => {
+  const r = await api("start", {code, pid});
+  if (r.error) return ($("serr").textContent = r.error);
+  apply(r);
+};
+
+/* ---------- sincronización ---------- */
+async function poll() {
+  if (!code) return;
+  if (!pid) return showLanding();
+  try {
+    const r = await (await fetch(`/api/state?code=${code}&pid=${pid}`)).json();
+    if (r.nojoin) { pid = null; return showLanding(); }
+    if (r.error) { show("landing"); $("ltitle").textContent = r.error; $("lsub").textContent = ""; $("go").hidden = true; $("name").hidden = true; return; }
+    if (r.v !== ver) apply(r);
+  } catch (e) { /* reintenta en el próximo ciclo */ }
+}
+setInterval(poll, 1500);
+
+function apply(s) {
+  ver = s.v; S = s;
+  if (!s.started) return drawLobby();
+  show("game");
+  W = {rack: s.rack.slice(), table: s.table.map(g => g.slice())};
+  mine = new Set(s.rack.map(t => t.id));
+  sel.clear(); vals = [];
+  $("chips").replaceChildren(...s.players.map((p, i) => {
+    const c = document.createElement("span");
+    c.className = "chip" + (i === s.turn && !s.winner ? " turn" : "");
+    c.textContent = `${p.name}${p.you ? " (tú)" : ""}: ${p.n}`;
+    return c;
+  }), Object.assign(document.createElement("span"), {className: "chip", textContent: "Mazo: " + s.pool}));
+  const last = s.log[s.log.length - 1] || "";
+  say(s.myTurn ? "Es tu turno. " + last : `Turno de ${s.players[s.turn].name}. ${last}`);
+  if (s.winner) {
+    $("endtxt").textContent = s.winner === "draw" ? "Empate" : s.winner.you ? "¡Ganaste! 🎉" : `Gana ${s.winner.name}`;
+    $("end").style.display = "flex";
+  }
+  render();
+}
+
+/* ---------- tablero ---------- */
+function tileEl(t) {
+  const b = document.createElement("button");
+  b.className = "tile c" + t.c + (sel.has(t.id) ? " sel" : "");
+  b.setAttribute("aria-label", t.n ? t.n + " " + COLOR[t.c] : "comodín");
+  b.innerHTML = t.n ? `<b>${t.n}</b><i>${SYM[t.c]}</i>` : `<b>☺</b>`;
+  b.onclick = () => { if (!S.myTurn) return; sel.has(t.id) ? sel.delete(t.id) : sel.add(t.id); render(false); };
+  return b;
+}
+
+function render(doCheck = true) {
+  const rack = $("rack"); rack.innerHTML = "";
+  const key = sortBy === "n" ? t => (t.n || 99) * 10 + t.c : t => (t.c + 1) * 100 + (t.n || 99);
+  W.rack.slice().sort((a, b) => key(a) - key(b)).forEach(t => rack.append(tileEl(t)));
+
+  const board = $("board"); board.innerHTML = "";
+  if (!W.table.length) board.innerHTML = '<p class="empty">La mesa está vacía. Selecciona fichas de tu atril y crea un grupo.</p>';
+  W.table.forEach((g, gi) => {
+    const el = document.createElement("div");
+    el.className = "group";
+    if (vals[gi] !== undefined) {
+      el.classList.add(vals[gi] ? "ok" : "bad");
+      el.insertAdjacentHTML("beforeend", `<span class="val">${vals[gi] ? vals[gi] + " pts" : "no válida"}</span>`);
+    }
+    g.forEach(t => el.append(tileEl(t)));
+    const slot = document.createElement("button");
+    slot.className = "slot"; slot.textContent = "+"; slot.title = "Añadir la selección a este grupo";
+    slot.onclick = () => moveTo(gi);
+    el.append(slot);
+    board.append(el);
+  });
+  if (doCheck) check();
+  const dirty = JSON.stringify(W.table.map(g => g.map(t => t.id))) !== JSON.stringify(S.table.map(g => g.map(t => t.id)));
+  ["newgroup", "back", "undo", "endturn"].forEach(id => { $(id).disabled = !S.myTurn; });
+  $("drawbtn").disabled = !S.myTurn || dirty;
+  if (S.myTurn && !S.melded && dirty) {
+    const pts = W.table.reduce((s, g, i) => s + (vals[i] && g.every(t => mine.has(t.id)) ? vals[i] : 0), 0);
+    say(`Primera jugada: ${pts} / 30 puntos.`);
+  }
+}
+
+async function check() {
+  const my = ++token;
+  const r = await api("check", {table: W.table.map(g => g.map(t => t.id))});
+  if (my !== token || !Array.isArray(r)) return;
+  vals = r; render(false);
+}
+
+function take(id) {
+  let i = W.rack.findIndex(t => t.id === id);
+  if (i >= 0) return W.rack.splice(i, 1)[0];
+  for (const g of W.table) { i = g.findIndex(t => t.id === id); if (i >= 0) return g.splice(i, 1)[0]; }
+}
+
+function moveTo(gi) {
+  if (!S.myTurn) return;
+  if (!sel.size) return say("Primero selecciona una o más fichas.", true);
+  const target = gi === "new" ? [] : W.table[gi];
+  const ts = [...sel].map(take);
+  if (gi === "new") W.table.push(target);
+  target.push(...ts);
+  W.table = W.table.filter(g => g.length);
+  sel.clear(); vals = []; say(""); render();
+}
+
+$("newgroup").onclick = () => moveTo("new");
+$("back").onclick = () => {
+  if (!S.myTurn) return;
+  const ids = [...sel].filter(id => mine.has(id));
+  if (!ids.length) return say("Solo puedes devolver fichas que tú pusiste en este turno.", true);
+  ids.forEach(id => W.rack.push(take(id)));
+  W.table = W.table.filter(g => g.length);
+  sel.clear(); vals = []; render();
+};
+$("undo").onclick = () => { if (S.myTurn) apply({...S}); };
+$("sort").onclick = () => { sortBy = sortBy === "n" ? "c" : "n"; $("sort").textContent = "Ordenar: " + (sortBy === "n" ? "número" : "color"); render(false); };
+
+async function act(path, extra) {
+  const s = await api(path, {code, pid, ...extra});
+  if (s.error) return say(s.error, true);
+  apply(s);
+}
+$("endturn").onclick = () => act("play", {table: W.table.map(g => g.map(t => t.id))});
+$("drawbtn").onclick = () => act("draw");
+
+if (!code) showLanding(); else poll();
+</script>
+</body>
+</html>
